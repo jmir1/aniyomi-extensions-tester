@@ -22,7 +22,7 @@ output file path: server/build/aniyomi-extensions-tester-\<version\>.jar
 
 ## Usage
 ```bash
-$ java -jar server/build/aniyomi-extensions-tester-v2.0.0.jar -h
+$ java -jar server/build/aniyomi-extensions-tester-v2.1.0.jar -h
 Usage: aniyomi-extension-tester options_list
 Arguments:
     apksPath -> Apk file or directory with apks { String }
@@ -49,8 +49,10 @@ Options:
     --help, -h -> Usage info
 ```
 ## TODO
-- [x] Implement all main functions from extensions
 - [ ] Support search filters
+- [ ] Support webview-related interceptors
+
+- [x] Implement all main functions from extensions
 - [x] Test and check thumbnail URLs and video URLs
 - [x] Show time spent on every test
 - [x] Honor all CLI options

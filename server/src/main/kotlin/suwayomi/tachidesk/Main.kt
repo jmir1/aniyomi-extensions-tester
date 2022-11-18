@@ -15,8 +15,10 @@ import mu.KotlinLogging
 import suwayomi.tachidesk.anime.impl.extension.AnimeExtension
 import suwayomi.tachidesk.anime.impl.extension.tester.ExtensionTests
 import suwayomi.tachidesk.anime.impl.extension.tester.models.SourceResultsDto
+import suwayomi.tachidesk.cmd.CYAN
 import suwayomi.tachidesk.cmd.CliOptions.parseArgs
 import suwayomi.tachidesk.cmd.GREEN
+import suwayomi.tachidesk.cmd.printTitle
 import suwayomi.tachidesk.cmd.timeTest
 import suwayomi.tachidesk.server.applicationSetup
 import java.io.File
@@ -55,26 +57,28 @@ suspend fun main(args: Array<String>) {
             .filter { it.extension == "apk" }
             .toList()
     }
+    val json = Json { prettyPrint = options.prettyJson; explicitNulls = false }
 
-    val extensionsInfo = extensions.associate {
-        logger.debug("Installing $it")
-        val (pkgName, sources) = AnimeExtension.installAPK(tmpDir) { it.toFile() }
-        pkgName to sources.map { source ->
+    extensions.forEachIndexed { index, ext ->
+        logger.debug("Installing $ext")
+        val (pkgName, sources) = AnimeExtension.installAPK(tmpDir) { ext.toFile() }
+        val results = sources.map { source ->
             timeTest("${source.name} TESTS", color = GREEN) {
                 val res = ExtensionTests(source, options.configs).runTests()
                 println()
                 SourceResultsDto(source.name, res)
             }
         }
-    }
+        println()
+        printTitle("${index + 1}/${extensions.size} EXTENSIONS DONE.", CYAN)
+        println()
 
-    val json = Json { prettyPrint = options.prettyJson; explicitNulls = false }
-    if (options.jsonFilesDir?.isNotBlank() ?: false) {
-        extensionsInfo.map {
-            val pkgName = it.key.substringAfter("eu.kanade.tachiyomi.animeextension.")
-            val result = json.encodeToString(it.value)
+        if (options.jsonFilesDir?.isNotBlank() ?: false) {
+            val name = pkgName.substringAfter("eu.kanade.tachiyomi.animeextension.")
+            val result = json.encodeToString(results)
+
             File(options.jsonFilesDir).also { it.mkdir() }.also {
-                File(it, "results-$pkgName.json").writeText(result)
+                File(it, "results-$name.json").writeText(result)
             }
         }
     }

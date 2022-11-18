@@ -15,20 +15,18 @@ plugins {
 
 dependencies {
     // okhttp
-    val okhttpVersion = "4.9.3" // version is locked by Aniyomi extensions
+    val okhttpVersion = "5.0.0-alpha.10" // version is locked by Aniyomi
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
     implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:$okhttpVersion")
-    implementation("com.squareup.okio:okio:3.0.0")
+    implementation("com.squareup.okio:okio:3.2.0")
 
 
-    // dependencies of Aniyomi extensions, some are duplicate, keeping it here for reference
+    // dependencies of Aniyomi, some are duplicate, keeping it here for reference
     implementation("com.github.inorichi.injekt:injekt-core:65b0440")
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("io.reactivex:rxjava:1.3.8")
-    implementation("org.jsoup:jsoup:1.14.3")
-    implementation("app.cash.quickjs:quickjs-jvm:0.9.2")
-
+    implementation("org.jsoup:jsoup:1.15.3")
 
     // AndroidCompat
     implementation(project(":AndroidCompat"))
@@ -55,7 +53,7 @@ sourceSets {
 }
 
 // should be bumped with each stable release
-val inspectorVersion = "v2.0.0"
+val inspectorVersion = "v2.1.0"
 
 // counts commit count on master
 val inspectorRevision = runCatching {
