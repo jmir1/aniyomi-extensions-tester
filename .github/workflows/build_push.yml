@@ -40,3 +40,15 @@ jobs:
         uses: gradle/gradle-command-action@v2
         with:
           arguments: :server:shadowJar
+
+      - name: Upload Prerelease
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "server/build/*.jar"
+          prerelease: true
+          draft: false
+          verbose: true
+          tag_name: prerelease
+          overwrite: true
