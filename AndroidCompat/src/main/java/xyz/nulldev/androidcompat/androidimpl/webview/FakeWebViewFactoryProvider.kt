@@ -1,4 +1,4 @@
-package xyz.nulldev.androidcompat.androidimpl
+package xyz.nulldev.androidcompat.androidimpl.webview
 
 import android.content.Context
 import android.webkit.WebViewClient
@@ -12,14 +12,17 @@ import java.net.URL
 
 class FakeWebViewFactoryProvider(private val ctx: Context) : WebViewFactoryProvider {
 
-    val webclient by lazy {
+    override val webclient by lazy {
         WebClient(BrowserVersion.BEST_SUPPORTED).apply {
-            options.isThrowExceptionOnFailingStatusCode = false
-            options.isPrintContentOnFailingStatusCode = false
-            options.isThrowExceptionOnScriptError = false
-            options.isJavaScriptEnabled = true
-            options.isCssEnabled = true
-            options.setUseInsecureSSL(true)
+            cookieManager = HtmlUnitCookieManager()
+            options.apply {
+                isThrowExceptionOnFailingStatusCode = false
+                isPrintContentOnFailingStatusCode = false
+                isThrowExceptionOnScriptError = false
+                isJavaScriptEnabled = true
+                isCssEnabled = true
+                setUseInsecureSSL(true)
+            }
         }
     }
 

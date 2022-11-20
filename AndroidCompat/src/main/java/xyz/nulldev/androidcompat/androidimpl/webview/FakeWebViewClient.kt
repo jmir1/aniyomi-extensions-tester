@@ -1,4 +1,4 @@
-package xyz.nulldev.androidcompat.androidimpl
+package xyz.nulldev.androidcompat.androidimpl.webview
 
 import android.content.Context
 import android.net.Uri
@@ -6,6 +6,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.gargoylesoftware.htmlunit.DownloadedContent
 import com.gargoylesoftware.htmlunit.HttpMethod
 import com.gargoylesoftware.htmlunit.HttpWebConnection
 import com.gargoylesoftware.htmlunit.WebClient
@@ -13,6 +14,7 @@ import com.gargoylesoftware.htmlunit.WebRequest
 import com.gargoylesoftware.htmlunit.WebResponse
 import com.gargoylesoftware.htmlunit.WebResponseData
 import com.gargoylesoftware.htmlunit.util.NameValuePair
+import java.io.InputStream
 import java.net.URL
 
 class FakeWebViewClient(
@@ -73,10 +75,23 @@ class FakeWebRequest(private val request: WebResourceRequest) :
     override fun getHttpMethod() = HttpMethod.valueOf(request.method)
 }
 
+// Uses less memory than the current absurd version that HtmlUnit uses
+class FakeDownloadedContent(private val input: InputStream) : DownloadedContent, AutoCloseable {
+
+    private val length_ by lazy { inputStream.readBytes().size.toLong() }
+    override fun length() = length_
+    override fun isEmpty() = length_ == 0L
+    override fun getInputStream() = input
+    override fun cleanUp() { input.close() }
+    override fun close() {
+        cleanUp()
+    }
+}
+
 class FakeWebResponse(private val response: WebResourceResponse) :
     WebResponse(
         WebResponseData(
-            response.data.readBytes(),
+            FakeDownloadedContent(response.data),
             response.statusCode,
             response.reasonPhrase,
             response.responseHeaders.map { (name, value) ->
