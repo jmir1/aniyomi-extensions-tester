@@ -9,12 +9,8 @@ This is a fork of [tachiyomi-extensions-inspector](https://github.com/tachiyomio
 - Has enough options to meet most of your needs.
 
 ## Compiling
-First, run the `getAndroid` script, to generate the needed android.jar file (only once)
-```bash
-$ ./AndroidCompat/getAndroid.sh
-```
 
-Then compile the project:
+Just run:
 ```bash
 $ ./gradlew :server:shadowJar
 ```
@@ -22,7 +18,7 @@ output file path: server/build/aniyomi-extensions-tester-\<version\>.jar
 
 ## Usage
 ```bash
-$ java -jar server/build/aniyomi-extensions-tester-v2.1.0.jar -h
+$ java -jar server/build/aniyomi-extensions-tester-v2.2.0.jar -h
 Usage: aniyomi-extension-tester options_list
 Arguments:
     apksPath -> Apk file or directory with apks { String }
@@ -50,7 +46,8 @@ Options:
 ```
 ## TODO
 - [ ] Support search filters
-- [ ] Support webview-related interceptors
+- [x] Support webview-related interceptors
+> - [ ] Implement a proper and functional Cloudflare interceptor
 
 - [x] Implement all main functions from extensions
 - [x] Test and check thumbnail URLs and video URLs

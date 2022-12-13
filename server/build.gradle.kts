@@ -3,37 +3,29 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jmailen.gradle.kotlinter.tasks.FormatTask
 import org.jmailen.gradle.kotlinter.tasks.LintTask
 import java.io.BufferedReader
+import proguard.gradle.ProGuardTask
 
 plugins {
     application
-    kotlin("jvm")
-    kotlin("plugin.serialization")
-    id("org.jmailen.kotlinter")
-    id("com.github.johnrengelman.shadow")
-    id("com.github.gmazzo.buildconfig")
+    alias(libs.plugins.buildconfig)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlinter)
+    alias(libs.plugins.shadow)
 }
 
 dependencies {
-    // okhttp
-    val okhttpVersion = "5.0.0-alpha.10" // version is locked by Aniyomi
-    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
-    implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
-    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:$okhttpVersion")
-    implementation("com.squareup.okio:okio:3.2.0")
 
-
-    // dependencies of Aniyomi, some are duplicate, keeping it here for reference
-    implementation("com.github.inorichi.injekt:injekt-core:65b0440")
-    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
-    implementation("io.reactivex:rxjava:1.3.8")
-    implementation("org.jsoup:jsoup:1.15.3")
+    // Dependencies of Aniyomi, some are duplicate from root build.gradle.kts
+    // keeping it here for reference
+    implementation(libs.injekt.core)
+    implementation(libs.jsoup)
+    implementation(libs.rxjava)
+    implementation(libs.bundles.okhttp)
 
     // AndroidCompat
     implementation(project(":AndroidCompat"))
     implementation(project(":AndroidCompat:Config"))
-
-    // uncomment to test extensions directly
-//    implementation(fileTree("lib/"))
 
     // Testing
     testImplementation(kotlin("test-junit5"))
@@ -85,14 +77,17 @@ buildConfig {
 
 tasks {
     shadowJar {
+        dependencies {
+            exclude("com/ibm/icu/impl/data/icudt72b/*/*")
+        }
         manifest {
             attributes(
                 mapOf(
-                        "Main-Class" to MainClass,
-                        "Implementation-Title" to rootProject.name,
-                        "Implementation-Vendor" to "The Tachiyomi Open Source Project",
-                        "Specification-Version" to inspectorVersion,
-                        "Implementation-Version" to inspectorRevision
+                    "Main-Class" to MainClass,
+                    "Implementation-Title" to rootProject.name,
+                    "Implementation-Vendor" to "The Tachiyomi Open Source Project",
+                    "Specification-Version" to inspectorVersion,
+                    "Implementation-Version" to inspectorRevision
                 )
             )
         }
@@ -101,13 +96,14 @@ tasks {
         archiveClassifier.set(inspectorRevision)
     }
 
+
     withType<KotlinCompile> {
         kotlinOptions {
             freeCompilerArgs = listOf(
-                    "-Xopt-in=kotlin.RequiresOptIn",
-                    "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-                    "-Xopt-in=kotlinx.coroutines.InternalCoroutinesApi",
-                    "-Xopt-in=kotlin.io.path.ExperimentalPathApi",
+                "-Xopt-in=kotlin.RequiresOptIn",
+                "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                "-Xopt-in=kotlinx.coroutines.InternalCoroutinesApi",
+                "-Xopt-in=kotlin.io.path.ExperimentalPathApi",
             )
         }
     }
@@ -135,5 +131,21 @@ tasks {
 
     withType<ProcessResources> {
         duplicatesStrategy = DuplicatesStrategy.WARN
+    }
+
+    register<ProGuardTask>("optimizeShadowJar") {
+        group = "shadow"
+        val shadowJar = getByName("shadowJar")
+        dependsOn(shadowJar)
+        val shadowJars = shadowJar.outputs.files
+        injars(shadowJars)
+        outjars(
+            shadowJars.map { file ->
+                File(file.parentFile, "min/" + file.name)
+            }
+        )
+        val javaHome = System.getProperty("java.home")
+        libraryjars("$javaHome/jmods")
+        configuration("proguard-rules.pro")
     }
 }
