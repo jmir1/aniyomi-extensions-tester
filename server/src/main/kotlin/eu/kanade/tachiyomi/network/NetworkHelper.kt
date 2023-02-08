@@ -9,6 +9,7 @@ package eu.kanade.tachiyomi.network
  */
 
 import android.content.Context
+import eu.kanade.tachiyomi.network.interceptor.CFClearance.getWebViewUserAgent
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
 import okhttp3.OkHttpClient
@@ -17,7 +18,7 @@ import java.util.concurrent.TimeUnit
 
 class NetworkHelper(context: Context) {
 
-    val cookieManager = PersistentCookieJar()
+    val cookieManager = PersistentCookieJar(context)
 
     val client by lazy {
         val builder = OkHttpClient.Builder()
@@ -56,7 +57,7 @@ class NetworkHelper(context: Context) {
 
     val defaultUserAgent by lazy {
         System.getProperty("http.agent")
-            ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0"
+            ?: getWebViewUserAgent()
     }
 
     /**
@@ -71,8 +72,11 @@ class NetworkHelper(context: Context) {
         val host = proxy.substringBeforeLast(":").substringAfter("://")
         val type = proxy.substringBefore("://").let {
             // Adds a dot to every type, except socks[x]
-            if ("socks" in it) "socks"
-            else it + "."
+            if ("socks" in it) {
+                "socks"
+            } else {
+                it + "."
+            }
         }
         System.setProperty("${type}ProxyHost", host)
         System.setProperty("${type}ProxyPort", port)

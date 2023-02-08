@@ -23,6 +23,12 @@ dependencies {
     implementation(libs.rxjava)
     implementation(libs.bundles.okhttp)
 
+    // Cloudflare interceptor
+    implementation(libs.playwright)
+
+    // To decompress the downloaded .tar.gz of nodejs.. IF needed.
+    implementation(libs.commons.compress)
+
     // AndroidCompat
     implementation(project(":AndroidCompat"))
     implementation(project(":AndroidCompat:Config"))
@@ -45,7 +51,7 @@ sourceSets {
 }
 
 // should be bumped with each stable release
-val inspectorVersion = "v2.1.0"
+val inspectorVersion = "v2.2.0"
 
 // counts commit count on master
 val inspectorRevision = runCatching {
@@ -78,7 +84,14 @@ buildConfig {
 tasks {
     shadowJar {
         dependencies {
-            exclude("com/ibm/icu/impl/data/icudt72b/*/*")
+            exclude(
+                // Useless icu-related files
+                "com/ibm/icu/impl/data/icudt72b/*/*",
+                // Useless and heavy files from playwright-bundle
+                "driver/*/node*",
+                "driver/linux*/",
+                "driver/win32_x64/package/"
+            )
         }
         manifest {
             attributes(
@@ -100,10 +113,10 @@ tasks {
     withType<KotlinCompile> {
         kotlinOptions {
             freeCompilerArgs = listOf(
-                "-Xopt-in=kotlin.RequiresOptIn",
-                "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-                "-Xopt-in=kotlinx.coroutines.InternalCoroutinesApi",
-                "-Xopt-in=kotlin.io.path.ExperimentalPathApi",
+                "-opt-in=kotlin.RequiresOptIn",
+                "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                "-opt-in=kotlinx.coroutines.InternalCoroutinesApi",
+                "-opt-in=kotlin.io.path.ExperimentalPathApi",
             )
         }
     }
@@ -122,15 +135,17 @@ tasks {
     }
 
     withType<LintTask> {
+        exclude("**/BuildConfig.kt")
         source(files("src/kotlin"))
     }
-
+    
     withType<FormatTask> {
+        exclude("**/BuildConfig.kt")
         source(files("src/kotlin"))
     }
 
     withType<ProcessResources> {
-        duplicatesStrategy = DuplicatesStrategy.WARN
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 
     register<ProGuardTask>("optimizeShadowJar") {
