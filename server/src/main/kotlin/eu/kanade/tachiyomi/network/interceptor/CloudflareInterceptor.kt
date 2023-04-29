@@ -81,7 +81,7 @@ object CFClearance {
 
     private val defaultOptions by lazy {
         LaunchOptions()
-            .setHeadless(false)
+            .setHeadless(true)
             .setChromiumSandbox(false)
             .setArgs(
                 listOf(
