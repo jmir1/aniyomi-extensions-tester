@@ -11,6 +11,10 @@ import eu.kanade.tachiyomi.animesource.model.VideoDto
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.HEAD
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -79,24 +83,20 @@ class ExtensionTests(
     fun runTests(): TestsResultsDto {
         tests.forEach { test ->
             try {
-                // Returns the related function to each test inside a block
-                val testFunction: () -> Unit = when (test) {
-                    TestsEnum.POPULAR -> { { testPopularAnimesPage() } }
-                    TestsEnum.LATEST -> { { testLatestAnimesPage() } }
-                    TestsEnum.SEARCH -> { { testSearchAnimesPage() } }
-                    TestsEnum.ANIDETAILS -> { { testAnimeDetails() } }
-                    TestsEnum.EPLIST -> { { testEpisodeList() } }
-                    TestsEnum.VIDEOLIST -> { { testVideoList() } }
+                val testFunction = when (test) {
+                    TestsEnum.POPULAR -> ::testPopularAnimesPage
+                    TestsEnum.LATEST -> ::testLatestAnimesPage
+                    TestsEnum.SEARCH -> ::testSearchAnimesPage
+                    TestsEnum.ANIDETAILS -> ::testAnimeDetails
+                    TestsEnum.EPLIST -> ::testEpisodeList
+                    TestsEnum.VIDEOLIST -> ::testVideoList
                 }
 
                 // Prevents running LATEST test if the source doesnt support it.
-                if (test == TestsEnum.LATEST) {
-                    if (source.supportsLatest) {
-                        timeTestFromEnum(test) { testFunction() }
-                    }
-                } else {
-                    timeTestFromEnum(test) { testFunction() }
+                if (test == TestsEnum.LATEST && !source.supportsLatest) {
+                    return@forEach
                 }
+                timeTestFromEnum(test, testFunction)
             } catch (e: FailedTestException) {
                 writeTestError(test, e)
                 printTitle("${test.name} TEST FAILED", barColor = RED)
@@ -115,15 +115,11 @@ class ExtensionTests(
     }
 
     private fun testPopularAnimesPage() {
-        printAnimesPage(TestsEnum.POPULAR) { page: Int ->
-            source.fetchPopularAnime(page)
-        }
+        printAnimesPage(TestsEnum.POPULAR, source::fetchPopularAnime)
     }
 
     private fun testLatestAnimesPage() {
-        printAnimesPage(TestsEnum.LATEST) { page: Int ->
-            source.fetchLatestUpdates(page)
-        }
+        printAnimesPage(TestsEnum.LATEST, source::fetchLatestUpdates)
     }
 
     private fun testSearchAnimesPage() {
@@ -143,10 +139,11 @@ class ExtensionTests(
         if (configs.checkThumbnails) {
             details.is_thumbnail_loading = testMediaResult(details.thumbnail_url)
         }
-        printItemOrJson<SAnime>(details)
+        printItemOrJson(details)
         writeTestSuccess(TestsEnum.ANIDETAILS) {
-            val animeObj = details as SAnimeImpl
-            json.encodeToJsonElement(animeObj).jsonObject
+            (details as SAnimeImpl)
+                .let(json::encodeToJsonElement)
+                .jsonObject
         }
     }
 
@@ -159,7 +156,7 @@ class ExtensionTests(
 
         printLine("Episodes", result.size.toString())
 
-        if (result.size > 0) {
+        if (result.isNotEmpty()) {
             // Sets the episode url to use in videoList test.
             if (configs.episodeUrl.isNotBlank()) {
                 EP_URL = configs.episodeUrl
@@ -180,12 +177,12 @@ class ExtensionTests(
                 result
             }
 
-            episodeList.forEach {
-                printItemOrJson<SEpisode>(it)
-            }
+            episodeList.forEach(::printItemOrJson)
+
             writeTestSuccess(TestsEnum.EPLIST) {
-                val episodeOBJList = episodeList.map { it as SEpisodeImpl }
-                json.encodeToJsonElement(episodeOBJList).jsonArray
+                episodeList.map { it as SEpisodeImpl }
+                    .let(json::encodeToJsonElement)
+                    .jsonArray
             }
         }
     }
@@ -202,25 +199,26 @@ class ExtensionTests(
         )
 
         printLine("Videos", videoList.size.toString())
-        if (videoList.size == 0) {
+        if (videoList.isEmpty()) {
             throw FailedTestException("Empty video list")
         }
 
-        videoList.forEach {
-            // Tests if the video is loading
-            // It runs everytime, but its really fast and does not use much bandwith
-            // .... Unless something went wrong
-            val test = runCatching {
-                testMediaResult(it.videoUrl ?: it.url, true, it.headers)
-            }.getOrDefault(false)
-
-            it.isWorking = test
-            printItemOrJson<Video>(it)
-        }
+        videoList.let {
+            if (configs.checkVideos) {
+                it.parallelMap { video ->
+                    // Tests if the video is loading
+                    video.isWorking = runCatching {
+                        testMediaResult(video.videoUrl ?: video.url, true, video.headers)
+                    }.getOrDefault(false)
+                    video
+                }
+            } else { it }
+        }.forEach(::printItemOrJson)
 
         writeTestSuccess(TestsEnum.VIDEOLIST) {
-            val videoDtoList = videoList.map { VideoDto(it) }
-            json.encodeToJsonElement(videoDtoList).jsonArray
+            videoList.map(::VideoDto)
+                .let(json::encodeToJsonElement)
+                .jsonArray
         }
     }
 
@@ -243,7 +241,7 @@ class ExtensionTests(
             when (item) {
                 is SAnime -> printAnime(item, configs.checkThumbnails)
                 is SEpisode -> printEpisode(item, DATE_FORMATTER)
-                is Video -> printVideo(item)
+                is Video -> printVideo(item, configs.checkVideos)
             }
         }
     }
@@ -287,7 +285,7 @@ class ExtensionTests(
         if (!req.isSuccessful) return false
 
         val resType = req.header("content-type", "") ?: ""
-        if (resType == "undefined") {
+        if (resType == "undefined" || resType.isBlank()) {
             if (!supportsHEAD) {
                 return false
             } else {
@@ -326,8 +324,8 @@ class ExtensionTests(
             }
             println()
             printLine("Page", "$page")
-            printLine("Results", results.animes.size.toString())
-            printLine("Has next page", results.hasNextPage.toString())
+            printLine("Results", "${results.animes.size}")
+            printLine("Has next page", "${results.hasNextPage}")
             val animes = results.animes.let {
                 if (!configs.showAll) {
                     it.take(configs.resultsCount)
@@ -335,17 +333,20 @@ class ExtensionTests(
                     it
                 }
             }
-
-            animes.forEach {
-                // Sets the ANIME_OBJ for the anidetails test if needed.
-                if (ANIDETAILS_URL.isBlank() && ANIME_OBJ == null) {
-                    ANIME_OBJ = it
-                }
-                if (configs.checkThumbnails) {
-                    it.is_thumbnail_loading = testMediaResult(it.thumbnail_url)
-                }
-                printItemOrJson<SAnime>(it)
+            // Sets the ANIME_OBJ for the anidetails test if needed.
+            if (ANIDETAILS_URL.isBlank() && ANIME_OBJ == null) {
+                ANIME_OBJ = animes.first()
             }
+
+            animes.let {
+                if (configs.checkThumbnails) {
+                    it.parallelMap { anime ->
+                        val url = anime.thumbnail_url
+                        anime.is_thumbnail_loading = testMediaResult(url)
+                        anime
+                    }
+                } else { it }
+            }.forEach(::printItemOrJson)
 
             if (!configs.increment || !results.hasNextPage || page >= 2) {
                 break
@@ -408,25 +409,20 @@ class ExtensionTests(
      * @param result The result from the test.
      */
     private fun setTestResult(test: TestsEnum, result: ResultDto) {
-        when (test) {
-            TestsEnum.POPULAR -> {
-                TESTS_RESULTS_DTO.popular = result
-            }
-            TestsEnum.LATEST -> {
-                TESTS_RESULTS_DTO.latest = result
-            }
-            TestsEnum.SEARCH -> {
-                TESTS_RESULTS_DTO.search = result
-            }
-            TestsEnum.ANIDETAILS -> {
-                TESTS_RESULTS_DTO.details = result
-            }
-            TestsEnum.EPLIST -> {
-                TESTS_RESULTS_DTO.episodes = result
-            }
-            TestsEnum.VIDEOLIST -> {
-                TESTS_RESULTS_DTO.videos = result
+        TESTS_RESULTS_DTO.apply {
+            when (test) {
+                TestsEnum.POPULAR -> popular = result
+                TestsEnum.LATEST -> latest = result
+                TestsEnum.SEARCH -> search = result
+                TestsEnum.ANIDETAILS -> details = result
+                TestsEnum.EPLIST -> episodes = result
+                TestsEnum.VIDEOLIST -> videos = result
             }
         }
     }
+
+    private inline fun <A, B> Iterable<A>.parallelMap(crossinline f: suspend (A) -> B): List<B> =
+        runBlocking {
+            map { async(Dispatchers.Default) { f(it) } }.awaitAll()
+        }
 }

@@ -119,11 +119,12 @@ fun printEpisode(episode: SEpisode, formatter: SimpleDateFormat) {
  * Pretty-prints a Video object
  *
  * @param video The Video instance
+ * @param checkVideo A switch to enable the printing of the video status.
  */
-fun printVideo(video: Video) {
+fun printVideo(video: Video, checkVideo: Boolean) {
     println()
     printLine("Quality", video.quality)
-    printIfWorks(video.isWorking, "Is playing?")
+    if (checkVideo) printIfWorks(video.isWorking, "Is playing?")
     printLine("Video URL", video.videoUrl)
     if (video.url != video.videoUrl) {
         printLine("URL", video.url)
@@ -136,7 +137,7 @@ fun printVideo(video: Video) {
         ?.forEach { (first, second) ->
             printLine(first, second, width = 25, subPad = 6)
         }
-    if (video.subtitleTracks.size > 0) {
+    if (video.subtitleTracks.isNotEmpty()) {
         printLine("Subs", "")
         video.subtitleTracks.forEach {
             printLine("Sub Lang", it.lang, subPad = 6)

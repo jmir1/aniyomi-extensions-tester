@@ -33,7 +33,7 @@ object PackageTools {
     const val EXTENSION_FEATURE = "tachiyomi.animeextension"
     const val METADATA_SOURCE_CLASS = "tachiyomi.animeextension.class"
     const val LIB_VERSION_MIN = 12
-    const val LIB_VERSION_MAX = 13
+    const val LIB_VERSION_MAX = 14
 
     /**
      * Convert dex to jar, a wrapper for the dex2jar library
@@ -79,9 +79,7 @@ object PackageTools {
             val parsed = ApkFile(apk)
             val dbFactory = DocumentBuilderFactory.newInstance()
             val dBuilder = dbFactory.newDocumentBuilder()
-            val doc = parsed.manifestXml.byteInputStream().use {
-                dBuilder.parse(it)
-            }
+            val doc = parsed.manifestXml.byteInputStream().use(dBuilder::parse)
 
             logger.trace(parsed.manifestXml)
 
@@ -91,13 +89,10 @@ object PackageTools {
                 appTag?.childNodes?.toList()
                     .orEmpty()
                     .asSequence()
-                    .filter {
-                        it.nodeType == Node.ELEMENT_NODE
-                    }.map {
-                        it as Element
-                    }.filter {
-                        it.tagName == "meta-data"
-                    }.forEach {
+                    .filter { it.nodeType == Node.ELEMENT_NODE }
+                    .map { it as Element }
+                    .filter { it.tagName == "meta-data" }
+                    .forEach {
                         putString(
                             it.attributes.getNamedItem("android:name").nodeValue,
                             it.attributes.getNamedItem("android:value").nodeValue

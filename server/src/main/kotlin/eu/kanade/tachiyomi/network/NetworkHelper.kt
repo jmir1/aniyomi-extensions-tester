@@ -23,17 +23,20 @@ class NetworkHelper(context: Context) {
     val client by lazy {
         val builder = OkHttpClient.Builder()
             .cookieJar(cookieManager)
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.SECONDS)
-            .writeTimeout(5, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(2, TimeUnit.MINUTES)
             .addInterceptor(UserAgentInterceptor())
-        System.getProperty("ANIEXT_TESTER_PROXY")?.let {
-            parseProxy(it)?.let {
+
+        System.getProperty("ANIEXT_TESTER_PROXY")
+            ?.let(::parseProxy)
+            ?.let {
                 // We usually use proxies to debug https requests, so lets
                 // prevent some headache
                 builder.ignoreAllSSLErrors()
             }
-        }
+
         if (System.getProperty("ANIEXT_TESTER_DEBUG")?.equals("true") ?: false) {
             val loggingInterceptor = HttpLoggingInterceptor(
                 object : HttpLoggingInterceptor.Logger {

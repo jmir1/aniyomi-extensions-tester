@@ -84,9 +84,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     override fun fetchPopularAnime(page: Int): Observable<AnimesPage> {
         return client.newCall(popularAnimeRequest(page))
             .asObservableSuccess()
-            .map { response ->
-                popularAnimeParse(response)
-            }
+            .map(::popularAnimeParse)
     }
 
     /**
@@ -120,10 +118,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
                 // if an old extension using non-existent classes is still around
                 throw RuntimeException(e)
             }
-        }
-            .map { response ->
-                searchAnimeParse(response)
-            }
+        }.map(::searchAnimeParse)
     }
 
     /**
@@ -150,9 +145,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     override fun fetchLatestUpdates(page: Int): Observable<AnimesPage> {
         return client.newCall(latestUpdatesRequest(page))
             .asObservableSuccess()
-            .map { response ->
-                latestUpdatesParse(response)
-            }
+            .map(::latestUpdatesParse)
     }
 
     /**
@@ -210,9 +203,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
         return if (anime.status != SAnime.LICENSED) {
             client.newCall(episodeListRequest(anime))
                 .asObservableSuccess()
-                .map { response ->
-                    episodeListParse(response)
-                }
+                .map(::episodeListParse)
         } else {
             Observable.error(Exception("Licensed - No episodes to show"))
         }
@@ -281,7 +272,7 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
     open fun fetchVideoUrl(video: Video): Observable<String> {
         return client.newCall(videoUrlRequest(video))
             .asObservableSuccess()
-            .map { videoUrlParse(it) }
+            .map(::videoUrlParse)
     }
 
     /**
@@ -366,6 +357,28 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
         } catch (e: URISyntaxException) {
             orig
         }
+    }
+
+    /**
+     * Returns the url of the provided anime
+     *
+     * @since extensions-lib 14
+     * @param anime the anime
+     * @return url of the anime
+     */
+    open fun getAnimeUrl(anime: SAnime): String {
+        return animeDetailsRequest(anime).url.toString()
+    }
+
+    /**
+     * Returns the url of the provided episode
+     *
+     * @since extensions-lib 14
+     * @param episode the episode
+     * @return url of the episode
+     */
+    open fun getEpisodeUrl(episode: SEpisode): String {
+        return episode.url.toString()
     }
 
     /**
